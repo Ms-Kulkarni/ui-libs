@@ -1748,6 +1748,48 @@ describe("get lines infos", () => {
     })
 });
 
+describe("getAllFlowSectionRanges", () => {
+    test("returns ranges for tasks, triggers, errors, finally, pluginDefaults, afterExecution", () => {
+        const yamlString = `
+        id: test-flow
+        namespace: test.namespace
+
+        tasks:
+          - id: task1
+            type: type1
+
+          - id: task2
+            type: type2
+
+        triggers:
+          - id: trigger1
+            type: triggerType1
+
+        errors:
+          - id: error1
+            type: errorType1
+
+        finally:
+          - id: finally1
+            type: finallyType1
+
+        pluginDefaults:
+          - type: defaultType1
+
+        afterExecution:
+          - id: afterExec1
+            type: afterExecType1
+    
+        outputs:
+          - id: output1
+            type: STRING  
+        `;
+
+        const ranges = YamlUtils.getAllFlowSectionRanges(yamlString);
+        expect(ranges).toHaveLength(6);
+    });
+});
+
 describe("getTypeAtPosition", () => {
     test("gets type at given line and column", () => {
         const yamlString = `
@@ -1781,6 +1823,37 @@ describe("getTypeAtPosition", () => {
             name: Plugin 1
         `;
         const result = YamlUtils.getTypeAtPosition(yamlString, {lineNumber: 2, column:5}, ["type1"]); // line 2, column 5 is 'tasks' field
+        expect(result).toBeNull();
+    });
+
+    test("returns null if position outside of a FLOW_SECTION", () => {
+        const yamlString = `
+        id: main-flow
+        namespace: company.reproducer
+
+        tasks:
+          - id: callsubFlow
+            type: io.kestra.plugin.core.flow.Subflow
+            flowId: sub-fLov
+            namespace: companv.reproducer
+            inputs:
+            anystring: "CL secret (namespace=flow.namespace, key='MY_SECRET' ) }}"
+          - id: logsecret
+            type: io.kestra.plugin.core.log.Log
+            message: "Secret {{ secret (namespace=flow.namespace, key='MY_SECRET')}} -> from  Subflow: {{ outputs.callSubFlow.outputs.anystring }}"
+
+        outputs:
+          - id: outSecret
+            type: STRING
+            value: "{{ secret (namespace=flow.namespace, key=' MY_SECRET') }}"`;
+        const result = YamlUtils.getTypeAtPosition(
+            yamlString, 
+            {lineNumber: 16, column:5}, 
+            [   
+                "io.kestra.plugin.core.log.Log", 
+                "io.kestra.plugin.core.flow.Subflow"
+            ]
+        ); // line 16, column 5 is 'outputs' field
         expect(result).toBeNull();
     });
 })

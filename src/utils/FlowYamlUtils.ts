@@ -1069,6 +1069,29 @@ function extractAllTypes(source: string, validTypes: string[] = []){
     );
 }
 
+export function getAllFlowSectionRanges(source: string): [start: number, end: number][] {
+    const zones: [start: number, end: number][] = []
+
+    // find all sections that can contain plugins
+    for (const section of FLOW_SECTION_KEYS) {
+        // get section node
+        const {sectionNode} = getSectionNodeAndDocumentFromSource({source, section});
+        if (!sectionNode) {
+            continue;
+        }
+
+        // get section range
+        const sectionRange = sectionNode.range;
+        if (!sectionRange) {
+            continue;
+        }
+
+        // add section range to zones
+        zones.push([sectionRange[0], sectionRange[1]]);
+    }
+    return zones;
+}
+
 
 /**
  * Get task type at cursor position.
@@ -1079,12 +1102,19 @@ export function getTypeAtPosition(
     position: { lineNumber: number; column: number },
     validTypes: any
 ) {
+    
+
     const types = extractAllTypes(source, validTypes);
 
+    const zones = getAllFlowSectionRanges(source);
     const lineCounter = new LineCounter();
     parseDocument(source, {lineCounter});
     const cursorIndex =
         lineCounter.lineStarts[position.lineNumber - 1] + position.column;
+
+    if(!zones.some((zone) => cursorIndex >= zone[0] && cursorIndex <= zone[1])){
+        return null;
+    }
 
     for (const type of types.reverse()) {
         if (cursorIndex >= type.range[0]) {
